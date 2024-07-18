@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Converter PDF</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js" integrity="sha512-ml/QKfG3+Yes6TwOzQb7aCNtJF4PUyha6R3w8pSTo/VJSywl7ZreYvvtUso7fKevpsI+pYVVwnu82YO0q3V6eg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body { 
+            font-family: "Roboto", sans-serif;
+            background: #ddd;
+        }
+        main {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            h1 {
+                width: 100%;
+                padding: 20px 0;
+                text-align: center;
+                text-decoration: underline;
+            }
+            .pdfwork {
+                width: 50%;
+                height: 60vh;
+                padding: 50px 50px;
+                background: #fff;
+                border-radius: 10px;
+                box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.25);
+                .selected-pdf-span {
+                    font-weight: bold;
+                    animation: blink .5s ease-in-out;
+                }
+                input[type="file"] {
+                    display: none;
+                }
+                label[for="selectpdf"] {
+                    width: 400px;
+                    aspect-ratio: 16/9;
+                    background: #ddd;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #aaa;
+                    border: 2px dashed currentcolor;
+                    border-radius: 5px;
+                    transition: .5s;
+                    cursor: pointer;
+                    &:hover {
+                        background: #dddddd8b;
+                    }
+                }
+                .upload {
+                    border: none;
+                    padding: 10px 20px;
+                    margin-top: 10px; 
+                    font-weight: bold;
+                    border-radius: 5px;
+                    transition: .5s;
+                    cursor: pointer;
+                    &:hover {
+                        background: #cccccc7e;
+                    }
+                }
+                .result { width: 90%; }
+                .download { text-align: start; }
+            }
+        }
+        .pdfwork, .afterupload {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            width: 100%;
+        }
+        .pdfwork * {
+            margin-top: 5px;
+        }
+        .afterupload {
+            display: none;
+            select {
+                display: none;
+            }
+            textarea {
+                display: none;
+            }
+        }
+        .another {
+            display: none;
+            background: #e6e6e691;
+            border: none;
+            border-radius: 100px;
+            font-size: 25px;
+            padding: 3px 5px;
+            cursor: pointer;
+            transition: .5s;
+            &:hover {
+                color: red;
+            }
+        }
+        @keyframes blink {
+            0% { transform: scale(0.0); }
+            25% { transform: scale(1); }
+            50% {
+                opacity: 0; 
+                color: red;
+            }
+            100% { 
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <div class="pdfwork">
+            <h1>CONVERTER .PDF em .TXT</h1>
+            <button class="another" onclick="location.reload()"><i class="bi bi-arrow-clockwise"></i></button>
+            <span class="selected-pdf-span">Selecionar PDF</span>
+            <label for="selectpdf">Enviar PDF</label>
+            <input id="selectpdf" type="file" class="selectpdf">
+            <button class="upload">Enviar</button>
+            <div class="result"></div>
+            <div class="afterupload">
+                <select class="selectpage" onchange="afterProcess()"></select>
+                <a href="" class="download" download>Baixar Texto do PDF</a>
+                <textarea class="pdftext"></textarea>
+            </div>
+        </div>
+    </main>
+    <script>
+        // Definir a origem do worker para a biblioteca PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js";
+        
+        // Obter referências para vários elementos
+        let pdfinput = document.querySelector(".selectpdf"); // Referência para o campo de input de arquivo PDF
+        let upload = document.querySelector(".upload"); // Referência para o botão de envio
+        let afterupload = document.querySelector(".afterupload"); // Referência para a seção de resultado
+        let select = document.querySelector("select"); // Referência para o menu suspenso de seleção de página
+        let download = document.querySelector(".download"); // Referência para o link de download
+        let pdftext = document.querySelector(".pdftext"); // Referência para a área de texto para exibir o texto extraído
+        let result = document.querySelector(".result"); // Referência para a área de texto para exibir o texto extraído
+        
+        // Evento de escuta para o clique no botão de envio
+        upload.addEventListener('click', () => {
+            let file = pdfinput.files[0]; // Obter o arquivo PDF selecionado
+            if (file != undefined && file.type == "application/pdf") {
+                let fr = new FileReader(); // Criar um novo objeto FileReader
+                fr.readAsDataURL(file); // Ler o arquivo como URL de dados
+                fr.onload = () => {
+                    let res = fr.result; // Obter o resultado da leitura do arquivo
+                        extractText(res, true); // Extrair texto com senha
+                }
+            } else {
+                alert("Selecione um arquivo PDF válido");
+            }
+        });
+        
+        let alltext = []; // Array para armazenar todo o texto extraído
+        
+        // Função assíncrona para extrair texto do PDF
+        async function extractText(url, pass) {
+            try {
+                let pdf;
+                pdf = await pdfjsLib.getDocument(url).promise; // Obter o documento PDF sem senha
+                let pages = pdf.numPages; // Obter o número total de páginas no PDF
+                for (let i = 1; i <= pages; i++) {
+                    let page = await pdf.getPage(i); // Obter o objeto de página para cada página
+                    let txt = await page.getTextContent(); // Obter o conteúdo de texto da página
+                    let text = txt.items.map((s) => s.str).join(""); // Concatenar os itens de texto em uma única string
+                    alltext.push(text); // Adicionar o texto extraído ao array
+                }
+                alltext.map((e, i) => {
+                    select.innerHTML += `<option value="${i+1}">${i+1}</option>`; // Adicionar opções para cada página no menu suspenso de seleção de página
+                });
+                afterProcess(); // Exibir a seção de resultado
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+        
+        // Função para lidar com o pós-processamento após a extração de texto
+        function afterProcess() {
+            pdftext.value = alltext[select.value - 1]; // Exibir o texto extraído para a página selecionada
+            download.href = "data:text/plain;charset=utf-8," + encodeURIComponent(alltext[select.value - 1]); // Definir a URL do link de download para o texto extraído
+            afterupload.style.display = "flex"; // Exibir a seção de resultado
+            document.querySelector(".another").style.display = "unset"; // Exibir o botão "Extrair Outro PDF"
+            result.innerHTML = alltext[0];
+            // Obtenha o texto extraído do PDF
+            // const extractedText = alltext[select.value - 1];
+            // Verifique se a palavra "CNPJ" está presente
+            if (pdftext.value.includes("CNPJ")) {
+                console.log("A palavra 'CNPJ' foi encontrada no texto.");
+            } else {
+                console.log("A palavra 'CNPJ' não foi encontrada no texto.");
+            }
+            // Verifique se a palavra "CPF" está presente
+            if (pdftext.value.includes("CPF")) {
+                console.log("A palavra 'CPF' foi encontrada no texto.");
+            } else {
+                console.log("A palavra 'CPF' não foi encontrada no texto.");
+            }
+        }
+    </script>
+</body>
+</html>
