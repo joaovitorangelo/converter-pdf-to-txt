@@ -15,7 +15,7 @@
         }
         body { 
             font-family: "Roboto", sans-serif;
-            background: #ddd;
+            background: #111111f6;
         }
         main {
             display: flex;
@@ -44,6 +44,7 @@
                     display: none;
                 }
                 label[for="selectpdf"] {
+                    height: auto;
                     width: 400px;
                     aspect-ratio: 16/9;
                     background: #ddd;
@@ -71,7 +72,10 @@
                         background: #cccccc7e;
                     }
                 }
-                .result { width: 90%; }
+                .result { 
+                    width: 90%;
+                    overflow-y: scroll;
+                }
                 .download { text-align: start; }
             }
         }
@@ -116,6 +120,12 @@
             }
             100% { 
                 opacity: 1;
+            }
+        }
+        @media only screen and (max-width: 728px) {
+            .pdfwork {
+                width: 100% !important;
+                height: 100vh !important;
             }
         }
     </style>
